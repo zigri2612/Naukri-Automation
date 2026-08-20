@@ -10,7 +10,7 @@ const { matchScoreAPI } = require("../api");
 const { getConfirmation, questionMenu, checkBoxMenu } = require("./prompts");
 
 const getEmailsIds = async (jobs, profile) => {
-  let emailIds = await getDataFromFile("hrEmails");
+  let emailIds = await getDataFromFile("hrEmails", profile);
   if (!emailIds) emailIds = [];
   jobs?.forEach((jobDetails) => {
     if (jobDetails.matchScore == 0) return;
@@ -34,7 +34,7 @@ const getEmailsIds = async (jobs, profile) => {
         });
     }
   });
-  writeToFile(emailIds, "hrEmails");
+  writeToFile(emailIds, "hrEmails", profile);
   getCsvFile(emailIds, `${profile}-hrContactDetails.csv`);
   return emailIds;
 };
