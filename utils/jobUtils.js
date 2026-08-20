@@ -21,6 +21,12 @@ const spinner = require('./spinniesUtils');
 const { compressProfile } = require("./userUtils");
 const analyticsManager = require("./analyticsUtils");
 
+const getFolder = (profile) => {
+  if(preferences.enableProfileSharing)
+    return (profile && profile.id ? String(profile.id) : "").trim().split(/\s+/)[0];
+  return profile.id;
+};
+
 // apply for jobs in a string array
 const applyForJobs = async (jobs, applyData) => {
   //change this code to apply maximum 5 jobs at a time
@@ -237,7 +243,7 @@ const getRecommendedJobs = async () => {
 const handleQuestionnaire = async (data, enableGenAi) => {
   const applyData = {};
   const profile = localStorage.getItem("profile");
-  const questions = (await getDataFromFile("questions", profile.id)) ?? {};
+  const questions = (await getDataFromFile("questions", getFolder(profile))) ?? {};
   const updatedProfile = compressProfile(profile);
   for (const job of data.jobs) {
     const answers = {};
@@ -337,7 +343,7 @@ const handleQuestionnaire = async (data, enableGenAi) => {
       }
     });
 
-    writeToFile(questions, "questions", profile.id);
+    writeToFile(questions, "questions", getFolder(profile));
   }
 
   return applyData;
