@@ -10,6 +10,7 @@ const { getGeminiUserConfiguration } = require("../gemini");
 const {
   jobMatchStrategyMenu,
   enableManualAnsweringMenu,
+  enableProfileSharingMenu,
   getConfirmation,
   selectProfileMenu,
   enableGenAiMenu,
@@ -208,22 +209,27 @@ const getPreferences = async (user) => {
     }
   }
   if (doConfiguration || !preferences.noOfPages || !preferences.dailyQuota) {
-    // let res = await prompts.number({
-    //   message: "Enter the number of pages to search for jobs",
-    //   default: 5,
-    //   min: 1,
-    //   max: 10,
-    // });
-    preferences.noOfPages = 5;
+     let res = await prompts.number({
+       message: "Enter the number of pages to search for jobs",
+       default: 5,
+       min: 1,
+       max: 10,
+       description:
+        "This is the number of pages you want to search for jobs, Maximum quota is 10",
+     });
+    preferences.noOfPages = res;
     res = await prompts.number({
       message: "Enter the number of jobs to apply for on daily basis",
       default: 40,
       min: 1,
-      max: 50,
+      max: 70,
       description:
-        "This is the number of jobs you want to apply for on daily basis, Maximum quota is 50",
+        "This is the number of jobs you want to apply for on daily basis, Maximum quota is 70",
     });
     preferences.dailyQuota = res;
+    
+    res = await enableProfileSharingMenu();
+    preferences.enableProfileSharing = res;
   }
   return preferences;
 };

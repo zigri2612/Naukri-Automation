@@ -232,6 +232,30 @@ const enableManualAnsweringMenu = async () =>
     context
   );
 
+const enableProfileSharingMenu = async () =>
+  await prompts.select(
+    {
+      message: "Would you like to enable profile sharing?",
+      choices: [
+        {
+          name: "No",
+          value: false,
+          description: "Cache questions under the profile id folder.",
+        },
+        {
+          name: "Yes",
+          value: true,
+          description:
+            "Cache questions under a folder named with the first word of your profile name, so cached answers can be reused across profiles that share a first name.",
+        },
+      ],
+      description:
+        "Selecting yes stores the cached questions under a first-name folder instead of the profile id.",
+      theme,
+    },
+    context
+  );
+
 const getConfirmation = async (message, defaultAnswer = true, confirm=false) => {
   let promptFunction = confirm ? prompts.confirm : prompts.select;
   return await promptFunction(
@@ -352,6 +376,7 @@ module.exports = {
   enableGenAiMenu,
   selectGenAiModel,
   enableManualAnsweringMenu,
+  enableProfileSharingMenu,
   getConfirmation,
   questionMenu,
   checkBoxMenu,
