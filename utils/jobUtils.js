@@ -21,9 +21,24 @@ const spinner = require('./spinniesUtils');
 const { compressProfile } = require("./userUtils");
 const analyticsManager = require("./analyticsUtils");
 
-const getFolder = (profile) => {
-  if(preferences.enableProfileSharing)
-    return (profile && profile.id ? String(profile.id) : "").trim().split(/\s+/)[0];
+const { getFileData } = require("./ioUtils");
+
+const getFolder = async (profile) => {
+  const preferences = localStorage.getItem("preferences");
+  if(preferences?.enableProfileSharing) {
+    const firstName = (profile && profile.id ? String(profile.id) : "").trim().split(/\s+/)[0];
+    if (!firstName) return profile.id;
+
+    // Get all profiles from profiles.json and find those with same first name
+    const allProfiles = await getFileData("profiles") || [];
+    const matchingProfiles = allProfiles
+      .filter(p => p.id && p.id.trim().split(/\s+/)[0] === firstName)
+      .map(p => p.id)
+      .sort(); // Sort alphabetically ascending
+
+    // Return the first profile id (smallest name alphabetically)
+    return matchingProfiles.length > 0 ? matchingProfiles[0] : firstName;
+  }
   return profile.id;
 };
 
@@ -155,9 +170,9 @@ const getJobInfo = async (jobIds, batchSize = 5) => {
 };
 
 //Search all the jobs
-const searchJobs = async (pageNo, keywords, repetitions) => {
+const searchJobs = async (pageNo, keywords, repetitions, experience = 3) => {
   try {
-    const data = await searchJobsAPI(pageNo, keywords).then(async (results) => {
+    const data = await searchJobsAPI(pageNo, keywords, experience).then(async (results) => {
       if (results.status == 200) return results.json();
       else if (results.status == 403) {
         console.log("403 Forbidden : " + results.statusText);
@@ -243,7 +258,8 @@ const getRecommendedJobs = async () => {
 const handleQuestionnaire = async (data, enableGenAi) => {
   const applyData = {};
   const profile = localStorage.getItem("profile");
-  const questions = (await getDataFromFile("questions", getFolder(profile))) ?? {};
+  const folder = await getFolder(profile);
+  const questions = (await getDataFromFile("questions", folder)) ?? {};
   const updatedProfile = compressProfile(profile);
   for (const job of data.jobs) {
     const answers = {};
@@ -343,7 +359,8 @@ const handleQuestionnaire = async (data, enableGenAi) => {
       }
     });
 
-    writeToFile(questions, "questions", getFolder(profile));
+    const folder = await getFolder(profile);
+    writeToFile(questions, "questions", folder);
   }
 
   return applyData;
@@ -365,6 +382,9 @@ const findNewJobs = async (noOfPages=5, repetitions=1) => {
   const searchedJobIds = [];
   const recommendedJobs = getRecommendedJobs();
 
+  // Use profile's total experience for search
+  const experience = profile?.profile?.totalExperience?.year ? parseInt(profile.profile.totalExperience.year) : 3;
+
   const promises = [];
   for (let i = 0; i < noOfPages; i++) {
     // Add delay between page requests to avoid reCAPTCHA
@@ -374,7 +394,8 @@ const findNewJobs = async (noOfPages=5, repetitions=1) => {
     const jobs = searchJobs(
       i + 1,
       preferences.desiredRole?.map(encodeURIComponent).join("%2C%20"),
-      repetitions
+      repetitions,
+      experience
     );
     promises.push(jobs);
   }
@@ -486,6 +507,7 @@ module.exports = {
   clearJobs,
   findNewJobs,
   getExistingJobs,
+  getFolder,
   getResume,
   filterJobs,
 };

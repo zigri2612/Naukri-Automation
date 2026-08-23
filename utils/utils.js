@@ -41,7 +41,7 @@ const getEmailsIds = async (jobs, profile) => {
 
 const matchKeywords = async (keywords, jobKeywords) => {
   if (!keywords || keywords.length === 0) {
-    preferences = await getDataFromFile("preferences");
+    const preferences = await getDataFromFile("preferences");
     if (!preferences.keywords || preferences.keywords.length === 0) {
       const res = await prompts.input({
         message: "Please enter keywords to match with job description\n",

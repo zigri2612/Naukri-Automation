@@ -15,7 +15,8 @@ let questionEmbeddings = null;
 /**
  * Example function to check job suitability.
  */
-const checkSuitability = async (job, profile) => {
+const checkSuitability = async (job, profile, retryCount = 0) => {
+  const maxRetries = 2;
   try {
     spinner.start();
     const prompt = aiPrompts.jobSuitabilityPrompt(
@@ -39,17 +40,23 @@ const checkSuitability = async (job, profile) => {
     return data;
   } catch (e) {
     console.log(
-      "Error while generating content in checking suitability : " + e
+      "Error while generating content in checking suitability (attempt " + (retryCount + 1) + "): " + e.message
     );
-    console.log("Generated content is -> ");
-    console.log(response.candidates[0].content.parts[0].text);
-    throw e;
+    if (retryCount < maxRetries) {
+      console.log("Retrying...");
+      await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+      return checkSuitability(job, profile, retryCount + 1);
+    }
+    // Fallback: assume suitable if AI fails
+    console.log("AI suitability check failed, defaulting to suitable");
+    return { isSuitable: true };
   } finally {
     spinner.stop();
   }
 };
 
-const answerQuestion = async (questions, profileDetails) => {
+const answerQuestion = async (questions, profileDetails, retryCount = 0) => {
+  const maxRetries = 2;
   try {
     spinner.start("Generating answer...");
     if (questionEmbeddings == null) {
@@ -87,7 +94,12 @@ const answerQuestion = async (questions, profileDetails) => {
     const data = JSON.parse(jsonData);
     return data;
   } catch (e) {
-    console.error("Error while generating Assistant response:", e.message);
+    console.error("Error while generating Assistant response (attempt " + (retryCount + 1) + "):", e.message);
+    if (retryCount < maxRetries) {
+      console.log("Retrying...");
+      await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1)));
+      return answerQuestion(questions, profileDetails, retryCount + 1);
+    }
     return null;
   } finally {
     spinner.stop();
