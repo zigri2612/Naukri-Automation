@@ -376,7 +376,7 @@ const clearJobs = async () => {
 
 const findNewJobs = async (noOfPages=5, repetitions=1) => {
   spinner.start("Searching for jobs...");
-  const preferences = (await localStorage.getItem("preferences")) ?? {};
+  const preferences = await localStorage.getItem("preferences");
   const profile = await localStorage.getItem("profile");
   clearJobs();
   const searchedJobIds = [];
