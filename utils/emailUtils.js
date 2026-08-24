@@ -175,30 +175,29 @@ const sendEmails = async (
           const info = await transporter.sendMail(mailOptions);
           successfulEmails++;
           spinner.update(`Sent ${successfulEmails} out of ${totalEmails} emails`);
-          
+
           // Update mailSent status in allEmails array
-          const emailIndex = allEmails.findIndex(e => 
-            e.company === recipient.company && 
+          const emailIndex = allEmails.findIndex(e =>
+            e.company === recipient.company &&
             e.title === recipient.title
           );
           if (emailIndex !== -1) {
-            allEmails[emailIndex].mailSent = false;
+            allEmails[emailIndex].mailSent = true;
           }
-          
+
           analyticsManager.incrementEmailsSent();
           incrementCounterAPI("emailSent");
           return info;
         } catch (error) {
           console.log(`❌ Error sending to ${email}:`, error.message);
           // Update mailSent status to false in case of error
-          const emailIndex = allEmails.findIndex(e => 
-            e.company === recipient.company && 
+          const emailIndex = allEmails.findIndex(e =>
+            e.company === recipient.company &&
             e.title === recipient.title
           );
           if (emailIndex !== -1) {
             allEmails[emailIndex].mailSent = false;
           }
-          throw error;
         }
       });
     });
