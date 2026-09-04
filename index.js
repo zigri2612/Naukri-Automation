@@ -7,6 +7,7 @@ const {
   writeFileData,
 } = require("./utils/utils");
 const { rl, askQuestion, getDataFromFile, streamText } = require("./utils/ioUtils");
+const { runBatchMode } = require("./utils/batchMode");
 const {
   selectProfile,
   login,
@@ -249,7 +250,7 @@ const startSequence = async () => {
   await new Promise(resolve => setTimeout(resolve, 200));
 };
 
-const startProgram = async () => {
+let startProgram = async () => {
   try {
     await startSequence();
     await autoUpdate();
@@ -281,10 +282,14 @@ const startProgram = async () => {
     }
   } finally {
     console.log("Program ended");
-    await prompts.input({
-      message: "Press ENTER to exit...",
-    });
-    rl.close();
+    if (process.env.NAUKRI_BATCH_MODE !== "1") {
+      await prompts.input({
+        message: "Press ENTER to exit...",
+      });
+      rl.close();
+    } else {
+      rl.close();
+    }
   }
 };
 
@@ -339,6 +344,15 @@ process.on("SIGTERM", async () => {
 
 if(!isDebugMode){
   process.removeAllListeners('warning');
+}
+
+// Batch mode: process all profiles sequentially without interactive prompts
+if (process.env.NAUKRI_BATCH_MODE === "1") {
+  process.env.NAUKRI_BATCH_MODE = "1"; // Ensure it's set for child logic
+  startProgram = async () => {
+    await startSequence();
+    await runBatchMode();
+  };
 }
 
 startProgram();

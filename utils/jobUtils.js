@@ -20,6 +20,11 @@ const { localStorage } = require("./helper");
 const spinner = require('./spinniesUtils');
 const { compressProfile } = require("./userUtils");
 const analyticsManager = require("./analyticsUtils");
+const {
+  loadQuestionBank,
+  findAnswerFromBank,
+  generateFallbackAnswers,
+} = require("./questionBankUtils");
 
 // apply for jobs in a string array
 const applyForJobs = async (jobs, applyData) => {
@@ -291,9 +296,43 @@ const handleQuestionnaire = async (data, enableGenAi) => {
       (question) => !answers[question.questionId]
     );
     if (remainingQuestions.length > 0) {
-      for (const question of remainingQuestions) {
-        const answer = await getAnswerFromUser(question);
-        answers[question.questionId] = answer;
+      const isBatchMode = process.env.NAUKRI_BATCH_MODE === "1";
+      if (isBatchMode) {
+        // In batch mode, use question bank or fallback answers instead of interactive prompts
+        const questionBank = await loadQuestionBank();
+        const fallbackAnswers = generateFallbackAnswers(remainingQuestions);
+        for (const question of remainingQuestions) {
+          const bankAnswer = findAnswerFromBank(
+            questionBank,
+            question.questionName
+          );
+          if (bankAnswer !== null && bankAnswer !== undefined) {
+            answers[question.questionId] = bankAnswer;
+          } else if (fallbackAnswers[question.questionId] !== undefined) {
+            answers[question.questionId] = fallbackAnswers[question.questionId];
+          } else {
+            // Default to first option for List Menu / Radio Button
+            if (
+              ["List Menu", "Radio Button", "Check Box"].includes(
+                question.questionType
+              ) &&
+              question.answerOption &&
+              Object.keys(question.answerOption).length > 0
+            ) {
+              answers[question.questionId] =
+                question.questionType === "Check Box"
+                  ? []
+                  : Object.values(question.answerOption)[0];
+            } else {
+              answers[question.questionId] = "NA";
+            }
+          }
+        }
+      } else {
+        for (const question of remainingQuestions) {
+          const answer = await getAnswerFromUser(question);
+          answers[question.questionId] = answer;
+        }
       }
     }
 
@@ -437,7 +476,7 @@ const filterJobs = (jobInfo) => {
   const preferredSalary = user.profile.expectedCtc ?? 0;
   const maxTime = 30;
   const maxApplyCount = 10000;
-  const experience = user.profile.totalExperience.year + 2 ?? 100;
+  const experience = parseInt(user.profile.totalExperience?.year, 10) + 2;
   const videoProfile = false;
   const vacany = 1;
   const filteredJobs = jobInfo
