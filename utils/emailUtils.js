@@ -73,7 +73,7 @@ const resetEmailTemplate = async () => {
   return existingTemplate;
 };
 
-const editEmailTemplate = async () => {
+const editEmailTemplate = async (autoSkip = false) => {
   const profile = await localStorage.getItem("profile");
   let existingTemplateBuffer = await getDataFromFile(
     "emailTemplate.html",
@@ -83,6 +83,10 @@ const editEmailTemplate = async () => {
   let existingTemplate = existingTemplateBuffer
     ? existingTemplateBuffer.toString()
     : null;
+
+  // If autoSkip is true, directly use "skip" behavior without showing prompt
+  if (autoSkip) return existingTemplate;
+
   const res = await emailMenu();
   if (res === "previous") return null;
   if (res === "exit") throw new Error("ExitPromptError");
@@ -204,7 +208,7 @@ const sendEmails = async (
 
     // Wait for all emails to be sent
     await Promise.allSettled(emailPromises);
-    const endTime = Date.now(); 
+    const endTime = Date.now();
     const timeTaken = (endTime - startTime) / 1000;
     // Write the updated allEmails array back to file
     writeToFile(allEmails, "hrEmails");
@@ -343,4 +347,6 @@ module.exports = {
   clearEmails,
   exportEmails,
   handleEmailsMenu,
+  editEmailTemplate,
+  getEmails,
 };

@@ -20,6 +20,9 @@ const { localStorage } = require("./helper");
 const spinner = require('./spinniesUtils');
 const { compressProfile } = require("./userUtils");
 const analyticsManager = require("./analyticsUtils");
+const {
+  filterAlreadyAppliedJobs,
+} = require("./appliedJobsUtils");
 
 // apply for jobs in a string array
 const applyForJobs = async (jobs, applyData) => {
@@ -384,7 +387,15 @@ const findNewJobs = async (noOfPages=5, repetitions=1) => {
   );
   const jobInfo = await getJobInfo(uniqueJobIds);
   const emailIds = getEmailsIds(jobInfo, profile.id);
-  const filteredJobs = filterJobs(jobInfo);
+  const newJobs = filterJobs(jobInfo);
+
+  // Filter out already applied jobs (across all profiles)
+  const filteredJobs = await filterAlreadyAppliedJobs(newJobs);
+  const skippedCount = newJobs.length - filteredJobs.length;
+  if (skippedCount > 0) {
+    console.log(`Skipped ${skippedCount} already applied jobs.`);
+  }
+
   writeToFile(filteredJobs, "filteredJobIds", profile.id);
   spinner.succeed(`Found ${filteredJobs.length} jobs.`);
   return filteredJobs;
@@ -399,8 +410,18 @@ const getExistingJobs = async () => {
     Object.keys(jobsFromFile).length === 0
   )
     return [];
-  const filteredJobs = jobsFromFile?.filter(
-    (job) => !job.isSuitable || job.isApplied
+
+  // Filter out already applied jobs (across all profiles)
+  const newJobs = await filterAlreadyAppliedJobs(jobsFromFile);
+  const skippedCount = jobsFromFile.length - newJobs.length;
+  if (skippedCount > 0) {
+    console.log(`Skipped ${skippedCount} already applied jobs from saved file.`);
+  }
+
+  // Return suitable jobs that haven't been applied
+  // Handle jobs that may not have isSuitable/isApplied fields (from fresh searches)
+  const filteredJobs = newJobs?.filter(
+    (job) => (job.isSuitable === undefined || job.isSuitable) && !job.isApplied
   );
   if (filteredJobs?.length > 0) {
     console.log("Found jobs from file " + filteredJobs.length);
@@ -437,7 +458,7 @@ const filterJobs = (jobInfo) => {
   const preferredSalary = user.profile.expectedCtc ?? 0;
   const maxTime = 30;
   const maxApplyCount = 10000;
-  const experience = user.profile.totalExperience.year + 2 ?? 100;
+  const experience = (Number(user.profile.totalExperience?.year) || 0) + 2;
   const videoProfile = false;
   const vacany = 1;
   const filteredJobs = jobInfo
@@ -446,16 +467,26 @@ const filterJobs = (jobInfo) => {
         ? (new Date() - new Date(jobDetails.createdDate)) /
           (1000 * 60 * 60 * 24)
         : 0;
-      return (
-        (jobDetails?.maximumSalary == 0 || jobDetails?.maximumSalary >= preferredSalary) &&
-        createdDays <= maxTime &&
-        // jobDetails.applyCount <= maxApplyCount &&
-        jobDetails?.minimumExperience <= experience &&
-        (jobDetails?.videoProfilePreferred === undefined ||
-          jobDetails?.videoProfilePreferred === videoProfile)
-        // jobDetails.applyRedirectUrl === undefined &&
-        // (jobDetails.vacany === undefined || jobDetails.vacany >= vacany)
-      );
+
+      // Check each filter condition
+      const salaryOk = jobDetails?.maximumSalary == 0 || jobDetails?.maximumSalary >= preferredSalary;
+      const ageOk = createdDays <= maxTime;
+      const expOk = jobDetails?.minimumExperience <= experience;
+      const videoOk = jobDetails?.videoProfilePreferred === undefined || jobDetails?.videoProfilePreferred === videoProfile;
+
+      const passes = salaryOk && ageOk && expOk && videoOk;
+
+      // Debug: log why job was filtered out
+      if (!passes && jobDetails?.jobId) {
+        const reasons = [];
+        if (!salaryOk) reasons.push(`salary: max=${jobDetails?.maximumSalary} < expected=${preferredSalary}`);
+        if (!ageOk) reasons.push(`age: ${createdDays.toFixed(1)} days > ${maxTime}`);
+        if (!expOk) reasons.push(`exp: minExp=${jobDetails?.minimumExperience} > yourExp+2=${experience.toFixed(1)}`);
+        if (!videoOk) reasons.push('video profile required');
+        console.debug(`Filtered out job ${jobDetails.jobId}: ${reasons.join(', ')}`);
+      }
+
+      return passes;
     })
     .map((jobDetails) => ({
       jobId: jobDetails.jobId,
@@ -463,10 +494,20 @@ const filterJobs = (jobInfo) => {
       companyName: jobDetails?.companyName,
       description: jobDetails?.jobDescription,
       minimumSalary: jobDetails?.minimumSalary,
-      maximumSalary: jobDetails?.maximumSalary,
+      maximumSalary: jobDetails?.maximumSalary || 0,
       matchScore: jobDetails?.matchScore,
+      createdDate: jobDetails?.createdDate,
     }))
-    .sort((a, b) => b?.maximumSalary - a?.maximumSalary);
+    .sort((a, b) => {
+      // Primary: latest date first (handle undefined dates)
+      const dateA = a?.createdDate ? new Date(a.createdDate).getTime() : 0;
+      const dateB = b?.createdDate ? new Date(b.createdDate).getTime() : 0;
+      const dateDiff = dateB - dateA;
+      if (dateDiff !== 0) return dateDiff;
+      // Secondary: highest salary first (for same date)
+      return b?.maximumSalary - a?.maximumSalary;
+    });
+  console.log(`filterJobs: ${jobInfo.length} → ${filteredJobs.length} jobs after filtering`);
   return filteredJobs;
 };
 
