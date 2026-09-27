@@ -312,6 +312,7 @@ const selectProfileMenu = async (profiles) =>
         .map((profile, index) => ({ name: profile.id, value: index + 1 }))
         .concat([
           new prompts.Separator(),
+          { name: "Apply to ALL profiles (auto-switch)", value: "all-profiles", description: "Apply up to 50 jobs per profile, automatically switching profiles" },
           { name: "Add New Profile", value: -1 },
           { name: "About the author", value: "about" },
           { name: "Exit", value: "exit" },

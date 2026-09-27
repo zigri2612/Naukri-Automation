@@ -310,9 +310,12 @@ const selectProfile = async () => {
   }
   while (!selectedProfile) {
     const ans = await selectProfileMenu(profiles);
-    
+
     if (ans === -1) return null;
     if (ans === "exit") throw new Error("ExitPromptError");
+    if (ans === "all-profiles") {
+      return "all-profiles";
+    }
     if (ans === "about") {
       await getAuthorInfo();
       const res = await getConfirmation("Press ENTER to continue...", true, true);
