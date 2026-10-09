@@ -132,6 +132,8 @@ const sendEmails = async (
     spinner.start("Sending emails...");
     const startTime = Date.now();
     const profile = await localStorage.getItem("profile");
+    const preferences = await localStorage.getItem("preferences");
+    const emailPostfix = preferences?.emailPostfix || "";
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -165,7 +167,7 @@ const sendEmails = async (
         const mailOptions = {
           from: profile.userDetails.email,
           to: email,
-          subject: `Application for ${recipient.title} at ${recipient.company}`,
+          subject: `Application for ${recipient.title} at ${recipient.company}${emailPostfix}`,
           html: updatedTemplate,
           attachments: [
             {
