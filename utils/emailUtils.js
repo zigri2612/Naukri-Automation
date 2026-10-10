@@ -167,7 +167,7 @@ const sendEmails = async (
         const mailOptions = {
           from: profile.userDetails.email,
           to: email,
-          subject: `Application for ${recipient.title} at ${recipient.company}${emailPostfix}`,
+          subject: `Application for ${recipient.title}${emailPostfix}`,
           html: updatedTemplate,
           attachments: [
             {

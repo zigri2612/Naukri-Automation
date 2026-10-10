@@ -4,7 +4,7 @@ const path = require("path");
 const readline = require("readline");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 
-const TEMP_DIR = path.join(__dirname, '..', 'naukri-ninja');
+const TEMP_DIR = path.join(__dirname, '..');
 
 const getDataFromFile = async (fileName, profile, isBuffer = false) => {
   if (profile === undefined || profile === null) {
